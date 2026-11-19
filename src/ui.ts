@@ -1,5 +1,8 @@
 import { CARDS, ITEMS, RARITY_COLOR, SPECIES, ZONES, Rarity, StatKey } from './data';
-import { S, stats, maxHp, maxMp, expToNext, addItem, addCard, log, save, buyPrice, sellPrice, marketPrice, nudge, species, wipe, charmDiscount } from './state';
+import { S, stats, maxHp, maxMp, expToNext, addItem, addCard, log, save, buyPrice, sellPrice, marketPrice, nudge, species, wipe, charmDiscount, bus } from './state';
+import { questLog, trackerHtml, dailyGift } from './quests';
+import { fishing } from './lootspots';
+import { gfxMode, setGfx, timeLabel, WEATHER_ICON, AMB } from './ambient';
 import { bar } from './battle';
 import { W, refreshPlayer } from './world';
 import { Loot, lootHtml } from './loot';
@@ -19,7 +22,7 @@ export function closePanel() {
   el.classList.add('closing'); setTimeout(() => el.remove(), 170);
 }
 /** Opens (or re-renders in place, without replaying the intro animation) a modal panel. */
-function openPanel(name: string, title: string, body: string, arg?: string, wide = false) {
+export function openPanel(name: string, title: string, body: string, arg?: string, wide = false) {
   let el: HTMLElement; let scroll = 0;
   if (current && current.name === name && current.arg === arg) {
     el = current.el; scroll = el.querySelector('.pb')?.scrollTop ?? 0;
@@ -98,7 +101,9 @@ export function mountHud() {
   <div id="feed" class="glass"></div>
   <div id="prompt"></div>
   <div id="toasts" aria-live="polite"></div>
+  <button id="tracker" class="glass" aria-label="Open quest log"></button>
   <nav id="bar" class="glass">
+    ${dockBtn('quests', ICON.book, 'Quests', 'Q')}
     ${dockBtn('bag', ICON.bag, 'Bag', 'I')}
     ${dockBtn('deck', ICON.cards, 'Deck', 'K')}
     ${dockBtn('stall', ICON.stall, 'Stall')}
@@ -107,6 +112,7 @@ export function mountHud() {
     ${dockBtn('menu', ICON.gear, 'Menu')}
   </nav>`;
   ui().querySelectorAll<HTMLElement>('[data-o]').forEach(b => b.addEventListener('click', () => open(b.dataset.o!)));
+  document.getElementById('tracker')!.addEventListener('click', () => open('quests'));
   lastGlimmer = -1; renderHud();
 }
 export function renderHud() {
@@ -127,6 +133,7 @@ export function renderHud() {
   if (zb.dataset.z !== S.zone) { zb.dataset.z = S.zone; zb.innerHTML = `<div class="sign"><span class="pin">${ICON.pin}</span><div><b>${z.name}</b><small>${z.sub}</small></div></div>`; zb.classList.remove('enter'); void zb.offsetWidth; zb.classList.add('enter'); }
   setHtml(document.getElementById('feed')!, `<h4>${ICON.feed} Island Feed</h4>` + S.log.slice(0, 6).map((l, i) => `<div class="fl" style="--d:${i}">${esc(l)}</div>`).join(''));
   const db = document.getElementById('decobtn'); if (db) db.style.display = S.zone === 'den' ? '' : 'none';
+  const tr = document.getElementById('tracker'); if (tr) setHtml(tr, `<div class="trk-time">${timeLabel()}${S.zone !== 'den' && WEATHER_ICON[AMB.weather] ? ` <span>${WEATHER_ICON[AMB.weather]}</span>` : ''}${Date.now() < S.repelUntil ? ' <span title="Hushleaf active">🌿</span>' : ''}</div>${trackerHtml()}`);
 }
 
 // ---------------- Title + character creation ----------------
@@ -182,6 +189,9 @@ export function open(name: string, arg?: string) {
   if (name === 'trade') return trade();
   if (name === 'help') return help();
   if (name === 'menu') return menu();
+  if (name === 'quests') return questLog(arg);
+  if (name === 'fish') return fishing(arg!);
+  if (name === 'gift') return dailyGift();
 }
 
 /** Grid item card: icon medallion, name, rarity color, qty, price/actions, tooltip. */
@@ -198,7 +208,7 @@ function itemCard(id: string, n: number, actions: string, priceHtml = '') {
 const grid = (cards: string, empty: string) => cards ? `<div class="igrid">${cards}</div>` : `<div class="empty">${ICON.paw}<p>${empty}</p></div>`;
 
 function bag() {
-  const groups: [string, string][] = [['all', 'All'], ['weapon', '⚔️ Weapons'], ['consumable', '🧃 Items'], ['cosmetic', '🎀 Wear'], ['furniture', '🛋️ Decor'], ['material', '💎 Loot']];
+  const groups: [string, string][] = [['all', 'All'], ['weapon', '⚔️ Weapons'], ['consumable', '🧃 Items'], ['cosmetic', '🎀 Wear'], ['furniture', '🛋️ Decor'], ['material', '💎 Loot'], ['fish', '🐟 Fish'], ['key', '🗝️ Keys']];
   const owned = Object.entries(S.inventory).filter(([id, n]) => n > 0 && ITEMS[id]);
   const { cur, html } = tabBar('bag', groups.map(([k, t]) => [k, t, k === 'all' ? owned.length : owned.filter(([id]) => ITEMS[id].kind === k).length]), 'all');
   const list = owned.filter(([id]) => cur === 'all' || ITEMS[id].kind === cur).sort((a, b) => ITEMS[b[0]].base - ITEMS[a[0]].base);
@@ -211,8 +221,10 @@ function bag() {
   }).join('');
   const el = openPanel('bag', `${ICON.bag} Bag <small>${owned.length} kinds</small>`, `<p class="muted">Most valuables come from dungeons — sell them at the market or your stall.</p>${html}${grid(cards, 'Nothing here yet. Dungeons are where the treasure is!')}`, undefined, true);
   el.querySelectorAll<HTMLElement>('[data-eq]').forEach(b => b.addEventListener('click', () => { S.equipped = b.dataset.eq!; save(); toast(`Equipped ${ITEMS[S.equipped].name}`, 'good'); refreshPanel(); }));
-  el.querySelectorAll<HTMLElement>('[data-use]').forEach(b => b.addEventListener('click', () => { const it = ITEMS[b.dataset.use!]; S.hp = Math.min(maxHp(), S.hp + (it.heal ?? 0)); S.mp = Math.min(maxMp(), S.mp + (it.mp ?? 0)); addItem(it.id, -1); save(); toast(`Used ${it.icon} ${it.name}`, 'good'); refreshPanel(); }));
-  el.querySelectorAll<HTMLElement>('[data-wear]').forEach(b => b.addEventListener('click', () => { S.wearing = b.dataset.wear || null; refreshPlayer(); save(); refreshPanel(); }));
+  el.querySelectorAll<HTMLElement>('[data-use]').forEach(b => b.addEventListener('click', () => { const it = ITEMS[b.dataset.use!];
+    if (it.repel) { S.repelUntil = Math.max(Date.now(), S.repelUntil) + it.repel * 1000; addItem(it.id, -1); save(); toast(`${it.icon} Hushleaf scent: critters will ignore you for ${Math.round((S.repelUntil - Date.now()) / 1000)}s`, 'good'); refreshPanel(); return; }
+    S.hp = Math.min(maxHp(), S.hp + (it.heal ?? 0)); S.mp = Math.min(maxMp(), S.mp + (it.mp ?? 0)); addItem(it.id, -1); save(); toast(`Used ${it.icon} ${it.name}`, 'good'); refreshPanel(); }));
+  el.querySelectorAll<HTMLElement>('[data-wear]').forEach(b => b.addEventListener('click', () => { S.wearing = b.dataset.wear || null; refreshPlayer(); save(); if (S.wearing) bus.emit('wear', S.wearing); refreshPanel(); }));
 }
 
 /** Fancy battle/collection card. Shared with battle.ts. */
@@ -223,7 +235,7 @@ export function cardHtml(id: string, extra = '', cls = 'mini') {
     <div class="cart"><span class="cicon">${c.icon}</span></div>
     <div class="cname">${c.name}</div>
     <div class="cdesc">${c.desc}</div>
-    <div class="ctype"><span>${c.type}</span><i class="pips">${'◆'.repeat(c.rarity === 'epic' ? 3 : c.rarity === 'rare' ? 2 : 1)}</i></div></div>`;
+    <div class="ctype"><span>${c.type}</span><i class="pips">${'◆'.repeat(c.rarity === 'legendary' ? 4 : c.rarity === 'epic' ? 3 : c.rarity === 'rare' ? 2 : 1)}</i></div></div>`;
 }
 function deck() {
   const counts: Record<string, number> = {}; S.deck.forEach(c => counts[c] = (counts[c] ?? 0) + 1);
@@ -290,7 +302,7 @@ function cardShop() {
     const p = PACKS.find(x => x.id === b.dataset.pack)!; if (S.glimmer < p.price) return toast('Not enough Glimmer'); S.glimmer -= p.price;
     const got: string[] = [];
     for (let i = 0; i < p.n; i++) { const r = Math.random(); const rar: Rarity = r < p.odds.epic ? 'epic' : r < p.odds.epic + p.odds.rare ? 'rare' : 'common'; const pool = Object.values(CARDS).filter(c => c.rarity === rar); const c = pool[Math.floor(Math.random() * pool.length)]; addCard(c.id); got.push(c.id); }
-    log(`Opened a ${p.name}!`); save(); lastPack = got; refreshPanel(); lastPack = [];
+    log(`Opened a ${p.name}!`); bus.emit('buy_pack', p.id); save(); lastPack = got; refreshPanel(); lastPack = [];
   }));
 }
 
@@ -358,7 +370,7 @@ function trade() {
     for (const [id, n] of Object.entries(offer.mine)) { addItem(id, -n); tradeNpc!.inv[id] = (tradeNpc!.inv[id] ?? 0) + n; }
     for (const [id, n] of Object.entries(offer.theirs)) { addItem(id, n); tradeNpc!.inv[id] -= n; }
     S.glimmer += offer.theirG - offer.myG; tradeNpc!.glimmer += offer.myG - offer.theirG;
-    log('🤝 Trade with Tumbletoe completed!'); toast('🤝 Trade complete!', 'good'); offer = { mine: {}, theirs: {}, myG: 0, theirG: 0, state: 'edit' }; save(); trade(); renderHud();
+    log('🤝 Trade with Tumbletoe completed!'); toast('🤝 Trade complete!', 'good'); bus.emit('trade'); offer = { mine: {}, theirs: {}, myG: 0, theirG: 0, state: 'edit' }; save(); trade(); renderHud();
   });
 }
 
@@ -379,7 +391,9 @@ function help() {
 }
 function menu() {
   const el = openPanel('menu', `${ICON.gear} Menu`, `<div class="menu-stats"><div><b>${S.stats.battlesWon}</b><small>battles won</small></div><div><b>${S.stats.chestsOpened}</b><small>chests opened</small></div><div><b>${S.stats.sold}</b><small>stall sales</small></div></div>
-    <p class="muted">Progress is saved locally in this browser.</p><div class="menu-btns"><button class="btn primary" id="sv">${ICON.save} Save now</button><button class="btn danger" id="wp">${ICON.trash} Start over</button></div>`);
+    <div class="gfx-row"><b>Graphics</b><div class="seg">${(['auto', 'high', 'low'] as const).map(m => `<button class="btn sm ${gfxMode() === m ? 'primary' : ''}" data-gfx="${m}">${m === 'auto' ? 'Auto' : m === 'high' ? 'Pretty' : 'Battery saver'}</button>`).join('')}</div></div>
+    <p class="muted">Progress is saved locally in this browser. Graphics changes apply after a reload.</p><div class="menu-btns"><button class="btn primary" id="sv">${ICON.save} Save now</button><button class="btn danger" id="wp">${ICON.trash} Start over</button></div>`);
   el.querySelector('#sv')!.addEventListener('click', () => { save(); toast('Saved!', 'good'); });
+  el.querySelectorAll<HTMLElement>('[data-gfx]').forEach(b => b.addEventListener('click', () => { setGfx(b.dataset.gfx as 'auto'); save(); if (confirm('Reload now to apply the graphics setting?')) location.reload(); else refreshPanel(); }));
   el.querySelector('#wp')!.addEventListener('click', () => { if (confirm('Delete your save and start over?')) { wipe(); location.reload(); } });
 }
