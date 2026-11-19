@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ITEMS, DEN_THEMES } from './data';
-import { S, addItem, save, log } from './state';
+import { S, addItem, save, log, bus } from './state';
 import { W, groundPoint, pickObjects, addDenPiece, buildZone, DEN_HALF, hooks } from './world';
 import { buildFurniture } from './models';
 import { ICON } from './icons';
@@ -81,7 +81,7 @@ function onDown(e: PointerEvent) {
   if (sel.mode === 'new') {
     if (!S.inventory[sel.itemId]) return cancel();
     addItem(sel.itemId, -1); const uid = S.den.nextUid++;
-    S.den.pieces.push({ uid, itemId: sel.itemId, x: gx, z: gz, rot }); addDenPiece(uid);
+    S.den.pieces.push({ uid, itemId: sel.itemId, x: gx, z: gz, rot }); addDenPiece(uid); bus.emit('decorate', sel.itemId);
     const keepId = sel.itemId; cancel(); if (S.inventory[keepId]) select({ mode: 'new', itemId: keepId });
   } else {
     const piece = S.den.pieces.find(q => q.uid === (sel as any).uid)!; piece.x = gx; piece.z = gz; piece.rot = rot;

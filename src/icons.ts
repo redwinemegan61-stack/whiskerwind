@@ -3,6 +3,7 @@ const svg = (body: string, vb = '0 0 24 24') => `<svg class="ico" viewBox="${vb}
 const s = 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"';
 
 export const ICON = {
+  book: svg(`<path ${s} d="M3.5 5.5c3-1.4 5.8-1.2 8.5.6v13.4c-2.7-1.8-5.5-2-8.5-.6z"/><path ${s} d="M20.5 5.5c-3-1.4-5.8-1.2-8.5.6v13.4c2.7-1.8 5.5-2 8.5-.6z"/><path ${s} d="M15 9.5l1.5-.4M15 12.5l2.5-.5"/>`),
   glimmer: svg(`<defs><radialGradient id="gg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff6c2"/><stop offset=".55" stop-color="#ffd24d"/><stop offset="1" stop-color="#e09a12"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="url(#gg)" stroke="#b9770a" stroke-width="1.4"/><path d="M12 5.2l1.7 4.6 4.6 1.7-4.6 1.7L12 17.8l-1.7-4.6-4.6-1.7 4.6-1.7z" fill="#fff" opacity=".95"/>`),
   heart: svg(`<path d="M12 20.5s-7.5-4.6-9.2-9.3C1.6 7.8 3.9 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.4 0 5.7 3.3 4.5 6.7-1.7 4.7-9.2 9.3-9.2 9.3z" fill="currentColor"/>`),
   drop: svg(`<path d="M12 2.8s6.5 7.1 6.5 11.6a6.5 6.5 0 01-13 0C5.5 9.9 12 2.8 12 2.8z" fill="currentColor"/>`),

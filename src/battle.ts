@@ -13,6 +13,7 @@ const shuffle = <T,>(a: T[]) => { for (let i = a.length - 1; i > 0; i--) { const
 
 let B: BState; let root: HTMLElement; let done: (won: boolean) => void;
 
+export let lastOutcome: 'won' | 'lost' | 'fled' = 'won';
 export function startBattle(enemyId: string, onEnd: (won: boolean) => void) {
   const e = ENEMIES[enemyId]; done = onEnd;
   shownHp = -1;
@@ -105,7 +106,7 @@ function endTurn() {
 }
 
 function win() {
-  B.over = true; const L = rollEnemyLoot(B.e); grantLoot(L);
+  B.over = true; lastOutcome = 'won'; const L = rollEnemyLoot(B.e); grantLoot(L);
   const lv = gainExp(B.e.exp); S.stats.battlesWon++;
   log(`Defeated ${B.e.name}! +${B.e.exp} EXP`);
   render(); A.victory();
@@ -116,7 +117,7 @@ function win() {
   });
 }
 function lose() {
-  B.over = true; const hpAfter = Math.ceil(maxHp() / 2); const lost = Math.floor(S.glimmer * 0.1); S.glimmer -= lost;
+  B.over = true; lastOutcome = 'lost'; const hpAfter = Math.ceil(maxHp() / 2); const lost = Math.floor(S.glimmer * 0.1); S.glimmer -= lost;
   log(`You fainted to ${B.e.name} and woke up in town (-${lost}✦).`);
   render(); A.defeat();
   A.onIdle(() => {
@@ -125,7 +126,7 @@ function lose() {
     root.querySelector('#bdone')!.addEventListener('click', () => close(false));
   });
 }
-function flee() { if (B.over || B.locked) return; if (Math.random() < 0.5 + stats().sen * 0.02) { B.over = true; log('You slipped away.'); close(true, true); } else { B.logs.unshift('Could not escape!'); endTurn(); } }
+function flee() { if (B.over || B.locked) return; if (Math.random() < 0.5 + stats().sen * 0.02) { B.over = true; lastOutcome = 'fled'; log('You slipped away.'); close(true, true); } else { B.logs.unshift('Could not escape!'); endTurn(); } }
 function close(won: boolean, fled = false) {
   root.innerHTML = '';
   A.exitArena(() => { root.remove(); done(won && !fled ? true : won); });
