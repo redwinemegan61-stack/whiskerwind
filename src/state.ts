@@ -12,9 +12,28 @@ export interface Save {
   chests: Record<string, number>; // chestId -> time it can respawn
   bossRespawn: number; log: string[];
   den: { pieces: DenPiece[]; wall: string; floor: string; nextUid: number }; wearing: string | null; stats: { battlesWon: number; chestsOpened: number; sold: number };
+  // ---- round 3: story, quests & loot sources (added to old saves by migrate()) ----
+  quests: Record<string, QuestProgress>;
+  flags: Record<string, boolean | number | string>;
+  counters: Record<string, number>; // lifetime tallies: kills:<enemy>, forage, fish, smash, chests, golden …
+  achievements: Record<string, number>; // id -> unlocked at
+  daily: { day: string; bounties: string[]; streak: number; giftDay: string };
+  spots: Record<string, number>; // forage / crate / fishing spot id -> respawn time
+  repelUntil: number;
 }
+export interface QuestProgress { step: number; prog: number; state: 'active' | 'ready' | 'done'; startedAt: number }
 
 const KEY = 'whiskerwind-save-v1';
+/** Tiny event bus so any module can report progress (quests/achievements subscribe in main.ts). */
+export const bus = { emit: (_type: string, _target?: string, _n?: number) => {} };
+export const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+/** Fill in fields added after a save was created, so older saves keep working. */
+function migrate(s: Save) {
+  s.quests ??= {}; s.flags ??= {}; s.counters ??= {}; s.achievements ??= {}; s.spots ??= {}; s.repelUntil ??= 0;
+  s.daily ??= { day: '', bounties: [], streak: 0, giftDay: '' };
+  s.stats ??= { battlesWon: 0, chestsOpened: 0, sold: 0 };
+}
+export function bump(key: string, n = 1) { S.counters[key] = (S.counters[key] ?? 0) + n; return S.counters[key]; }
 export let S: Save = null as unknown as Save;
 
 export function species(): Species { return SPECIES.find(s => s.id === S.speciesId)!; }
@@ -58,6 +77,7 @@ export function newGame(name: string, speciesId: string) {
     shops: shopTemplates.map(t => ({ ...t, stock: [] })), chests: {}, bossRespawn: 0,
     den: { pieces: [{ uid: 1, itemId: 'f_rug', x: 0, z: 0, rot: 0 }, { uid: 2, itemId: 'f_bed', x: -3, z: -3, rot: 0 }], wall: 'cream', floor: 'oak', nextUid: 3 }, wearing: null,
     log: ['Welcome to Puffle Cay! Dungeons are where the treasure is.'], stats: { battlesWon: 0, chestsOpened: 0, sold: 0 },
+    quests: {}, flags: {}, counters: {}, achievements: {}, daily: { day: '', bounties: [], streak: 0, giftDay: '' }, spots: {}, repelUntil: 0,
   };
   S.hp = maxHp(); S.mp = maxMp();
   Object.keys(ITEMS).forEach(id => S.marketFactor[id] = 0.9 + Math.random() * 0.2);
@@ -66,7 +86,7 @@ export function newGame(name: string, speciesId: string) {
 }
 export function save() { localStorage.setItem(KEY, JSON.stringify(S)); }
 export function load(): boolean {
-  try { const raw = localStorage.getItem(KEY); if (!raw) return false; S = JSON.parse(raw); return S.version === 1; } catch { return false; }
+  try { const raw = localStorage.getItem(KEY); if (!raw) return false; S = JSON.parse(raw); if (S.version !== 1) return false; migrate(S); return true; } catch { return false; }
 }
 export function wipe() { localStorage.removeItem(KEY); }
 
@@ -87,8 +107,8 @@ export function tickMarket() {
 }
 
 const lootPool: { id: string; w: number; zone: string }[] = Object.values(ITEMS)
-  .filter(i => i.source !== 'Starter' && !i.shop)
-  .map(i => ({ id: i.id, w: i.rarity === 'common' ? 10 : i.rarity === 'rare' ? 3 : 0.5, zone: i.source }));
+  .filter(i => i.source !== 'Starter' && !i.shop && i.rarity !== 'legendary' && i.kind !== 'key' && !/Main story|Bounty|Mini-boss/.test(i.source))
+  .map(i => ({ id: i.id, w: ({ common: 10, uncommon: 6, rare: 3, epic: 0.5, legendary: 0 } as const)[i.rarity], zone: i.source }));
 function pickLoot() { const tot = lootPool.reduce((a, b) => a + b.w, 0); let r = Math.random() * tot; for (const l of lootPool) { r -= l.w; if (r <= 0) return l; } return lootPool[0]; }
 
 /** Simulated adventurers return from dungeons and sell their loot to shops: shop stock originates from dungeon drops. */
@@ -111,7 +131,7 @@ export function tickStall(): string[] {
     const ratio = l.price / marketPrice(l.itemId);
     const p = Math.max(0.02, Math.min(0.85, 0.55 - (ratio - 1) * 0.9 + charmDiscount()));
     if (Math.random() < p * 0.35) {
-      S.stall.splice(S.stall.indexOf(l), 1); S.glimmer += l.price; S.stats.sold++;
+      S.stall.splice(S.stall.indexOf(l), 1); S.glimmer += l.price; S.stats.sold++; bus.emit('sell', l.itemId);
       nudge(l.itemId, ratio > 1.1 ? 0.04 : 0.01);
       const who = NPC_NAMES[Math.floor(Math.random() * NPC_NAMES.length)];
       const msg = `💰 ${who} bought your ${ITEMS[l.itemId].name} for ${l.price}✦`; log(msg); out.push(msg);

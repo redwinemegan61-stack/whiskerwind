@@ -14,6 +14,11 @@ export function toon(color: number, emissive = 0): THREE.MeshToonMaterial {
   if (!matCache.has(k)) matCache.set(k, new THREE.MeshToonMaterial({ color, gradientMap: gradient(), emissive, emissiveIntensity: emissive ? 0.6 : 0 }));
   return matCache.get(k) as THREE.MeshToonMaterial;
 }
+/** Shared night-glow materials: ambient.ts raises their emissive intensity after dusk. */
+export const GLOW = {
+  window: new THREE.MeshToonMaterial({ color: 0xbfe6ff, emissive: 0xffc46b, emissiveIntensity: 0 }),
+  lantern: new THREE.MeshToonMaterial({ color: 0xfff1c4, emissive: 0xffb84d, emissiveIntensity: 0.15 }),
+};
 export function mesh(geo: THREE.BufferGeometry, color: number, x = 0, y = 0, z = 0, emissive = 0) {
   const m = new THREE.Mesh(geo, toon(color, emissive)); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m;
 }
@@ -88,7 +93,7 @@ export function buildHouse(wall: number, roof: number, w = 3, d = 3) {
   g.add(mesh(new THREE.BoxGeometry(w, 2, d), wall, 0, 1, 0));
   const r = mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.8, 1.4, 4), roof, 0, 2.7, 0); r.rotation.y = Math.PI / 4; g.add(r);
   g.add(mesh(new THREE.BoxGeometry(0.7, 1.1, 0.1), 0x8b5a3c, 0, 0.55, d / 2 + 0.03));
-  for (const s of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.5, 0.5, 0.1), 0xbfe6ff, s * w * 0.3, 1.3, d / 2 + 0.03));
+  for (const s of [-1, 1]) { const win = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.1), GLOW.window); win.position.set(s * w * 0.3, 1.3, d / 2 + 0.03); g.add(win); }
   return g;
 }
 
@@ -102,7 +107,7 @@ export function buildStall(awning: number) {
 }
 
 export function buildChest(rarity: string) {
-  const col = rarity === 'epic' ? 0x9b4dff : rarity === 'rare' ? 0x3d8bff : 0xb07a45;
+  const col = ({ common: 0xb07a45, uncommon: 0x4fae62, rare: 0x3d8bff, epic: 0x9b4dff, legendary: 0xffb02e, locked: 0x6b6f80 } as Record<string, number>)[rarity] ?? 0xb07a45;
   const g = new THREE.Group();
   g.add(mesh(new THREE.BoxGeometry(0.9, 0.5, 0.6), col, 0, 0.25, 0));
   const lid = mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 12, 1, false, 0, Math.PI), col, 0, 0.5, 0); lid.rotation.z = Math.PI / 2; lid.rotation.y = Math.PI / 2; g.add(lid);
@@ -140,8 +145,8 @@ export function buildFurniture(model: string, color: number) {
 /** Small held weapon, shaped by its stat leaning and tinted by rarity. Attached to a chibi's right paw. */
 export function buildWeapon(itemId: string) {
   const it = ITEMS[itemId]; const g = new THREE.Group(); if (!it) return g;
-  const tint = it.rarity === 'epic' ? 0xffc94d : it.rarity === 'rare' ? 0x6fb7ff : 0xd8dde6;
-  const glow = it.rarity === 'epic' ? 0x664400 : it.rarity === 'rare' ? 0x113366 : 0;
+  const tint = it.rarity === 'legendary' ? 0xffe9a8 : it.rarity === 'epic' ? 0xffc94d : it.rarity === 'rare' ? 0x6fb7ff : it.rarity === 'uncommon' ? 0x9fe6a8 : 0xd8dde6;
+  const glow = it.rarity === 'legendary' ? 0x885500 : it.rarity === 'epic' ? 0x664400 : it.rarity === 'rare' ? 0x113366 : 0;
   const wood = 0x8b5a3c;
   if (it.stat === 'mag') { g.add(mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.9, 6), wood, 0, 0.3, 0)); g.add(mesh(new THREE.SphereGeometry(0.11, 10, 8), tint, 0, 0.8, 0, glow || 0x224466)); }
   else if (it.stat === 'chr') { g.add(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6), 0xffffff, 0, 0.2, 0)); for (const s of [-1, 1]) { const b = mesh(new THREE.ConeGeometry(0.08, 0.16, 6), it.rarity === 'common' ? 0xff5c8a : tint, s * 0.09, 0.52, 0); b.rotation.z = s * Math.PI / 2; g.add(b); } }

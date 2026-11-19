@@ -1,5 +1,7 @@
 // All names, stats, and content here are original to Whiskerwind.
-export type Rarity = 'common' | 'rare' | 'epic';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+export const rarityRank = (r: Rarity) => RARITY_ORDER.indexOf(r);
 export type StatKey = 'pow' | 'mag' | 'sen' | 'chr';
 export type Stats = Record<StatKey, number>;
 export type ZoneId = 'town' | 'woods' | 'hollow' | 'den';
@@ -21,10 +23,10 @@ export const SPECIES: Species[] = [
     base: { pow: 4, mag: 4, sen: 4, chr: 8 }, growth: { pow: 1, mag: 1, sen: 1, chr: 2 }, color: 0xb9c3d9, accent: 0x6c7aa0, starterWeapon: 'ribbon_whip' },
 ];
 
-export type ItemKind = 'weapon' | 'material' | 'consumable' | 'furniture' | 'cosmetic';
+export type ItemKind = 'weapon' | 'material' | 'consumable' | 'furniture' | 'cosmetic' | 'fish' | 'key';
 export interface ItemDef {
   id: string; name: string; kind: ItemKind; rarity: Rarity; base: number; icon: string;
-  atk?: number; stat?: StatKey; heal?: number; mp?: number; source: string; desc: string;
+  atk?: number; stat?: StatKey; heal?: number; mp?: number; repel?: number; source: string; desc: string;
   model?: string; color?: number; shop?: 'furniture' | 'boutique';
 }
 
@@ -37,7 +39,7 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'ribbon_whip', name: 'Ribbon Whip', kind: 'weapon', rarity: 'common', base: 20, icon: '🎀', atk: 1, stat: 'chr', source: 'Starter', desc: '+1 attack.' }),
   // Mossmere Woods loot
   I({ id: 'moss_tuft', name: 'Moss Tuft', kind: 'material', rarity: 'common', base: 6, icon: '🌿', source: 'Mossmere Woods', desc: 'Soft, springy, sought by weavers.' }),
-  I({ id: 'thorn_bark', name: 'Thorn Bark', kind: 'material', rarity: 'common', base: 9, icon: '🪵', source: 'Mossmere Woods', desc: 'Prickly bark used for armor padding.' }),
+  I({ id: 'thorn_bark', name: 'Thorn Bark', kind: 'material', rarity: 'uncommon', base: 9, icon: '🪵', source: 'Mossmere Woods', desc: 'Prickly bark used for armor padding.' }),
   I({ id: 'dewdrop_gem', name: 'Dewdrop Gem', kind: 'material', rarity: 'rare', base: 45, icon: '💧', source: 'Mossmere Woods', desc: 'Never dries. Jewelers love it.' }),
   I({ id: 'bramble_saber', name: 'Bramble Saber', kind: 'weapon', rarity: 'rare', base: 120, icon: '⚔️', atk: 3, stat: 'pow', source: 'Mossmere Woods', desc: '+3 attack.' }),
   I({ id: 'glowcap_staff', name: 'Glowcap Staff', kind: 'weapon', rarity: 'rare', base: 130, icon: '🍄', atk: 3, stat: 'mag', source: 'Mossmere Woods', desc: '+3 attack.' }),
@@ -47,12 +49,29 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'soot_silk', name: 'Soot Silk', kind: 'material', rarity: 'rare', base: 55, icon: '🧶', source: 'Cinder Hollow', desc: 'Fireproof thread spun by cinder moths.' }),
   I({ id: 'starfire_opal', name: 'Starfire Opal', kind: 'material', rarity: 'epic', base: 260, icon: '🌟', source: 'Cinder Hollow', desc: 'A tiny sunrise trapped in stone.' }),
   I({ id: 'cinder_fang', name: 'Cinder Fang', kind: 'weapon', rarity: 'rare', base: 180, icon: '🦷', atk: 4, stat: 'sen', source: 'Cinder Hollow', desc: '+4 attack.' }),
-  I({ id: 'mint_elixir', name: 'Mint Elixir', kind: 'consumable', rarity: 'rare', base: 30, icon: '🧪', mp: 20, heal: 10, source: 'Cinder Hollow', desc: 'Restores 20 MP, 10 HP.' }),
+  I({ id: 'mint_elixir', name: 'Mint Elixir', kind: 'consumable', rarity: 'uncommon', base: 30, icon: '🧪', mp: 20, heal: 10, source: 'Cinder Hollow', desc: 'Restores 20 MP, 10 HP.' }),
   // Boss epics
   I({ id: 'smoulder_crown', name: 'Smoulder Crown', kind: 'material', rarity: 'epic', base: 400, icon: '👑', source: 'Boss: Old Smoulderjaw', desc: 'Still smoking. Collectors go wild.' }),
   I({ id: 'sunpetal_blade', name: 'Sunpetal Blade', kind: 'weapon', rarity: 'epic', base: 520, icon: '🌻', atk: 7, stat: 'pow', source: 'Boss: Old Smoulderjaw', desc: '+7 attack.' }),
   I({ id: 'comet_scepter', name: 'Comet Scepter', kind: 'weapon', rarity: 'epic', base: 540, icon: '☄️', atk: 7, stat: 'mag', source: 'Boss: Old Smoulderjaw', desc: '+7 attack.' }),
   I({ id: 'velvet_paw', name: 'Velvet Paw', kind: 'weapon', rarity: 'epic', base: 500, icon: '🐾', atk: 6, stat: 'chr', source: 'Boss: Old Smoulderjaw', desc: '+6 attack.' }),
+  // foraging, fishing, keys & charms (round 3)
+  I({ id: 'puff_berry', name: 'Puff Berry', kind: 'material', rarity: 'common', base: 5, icon: '🫐', source: 'Foraging', desc: 'Fluffy-skinned berries. Granny Nutmeg bakes with them.' }),
+  I({ id: 'glowcap', name: 'Glowcap Mushroom', kind: 'material', rarity: 'uncommon', base: 14, icon: '🍄', source: 'Foraging · Mossmere Woods', desc: 'Glows softly at night. Lantern oil is pressed from it.' }),
+  I({ id: 'cinder_quartz', name: 'Cinder Quartz', kind: 'material', rarity: 'rare', base: 48, icon: '🔶', source: 'Foraging · Cinder Hollow', desc: 'A warm crystal that hums when held.' }),
+  I({ id: 'minnowpuff', name: 'Minnowpuff', kind: 'fish', rarity: 'common', base: 8, icon: '🐟', source: 'Fishing', desc: 'A round little fish that puffs up when happy.' }),
+  I({ id: 'bubblefin', name: 'Bubblefin', kind: 'fish', rarity: 'uncommon', base: 20, icon: '🐠', source: 'Fishing', desc: 'Blows bubbles shaped like hearts.' }),
+  I({ id: 'rainbow_koi', name: 'Rainbow Koi', kind: 'fish', rarity: 'rare', base: 70, icon: '🎏', source: 'Fishing', desc: 'Every scale a different colour.' }),
+  I({ id: 'moonscale_eel', name: 'Moonscale Eel', kind: 'fish', rarity: 'epic', base: 240, icon: '🌙', source: 'Fishing at night', desc: 'Only bites under the stars.' }),
+  I({ id: 'brass_key', name: 'Brass Key', kind: 'key', rarity: 'uncommon', base: 40, icon: '🗝️', source: 'Crates, quests & bounties', desc: 'Opens one locked chest.' }),
+  I({ id: 'hushleaf_sachet', name: 'Hushleaf Sachet', kind: 'consumable', rarity: 'uncommon', base: 30, icon: '🌿', repel: 60, source: 'Ribbon & Bell', shop: 'boutique', desc: 'Critters ignore you for 60s. Use from your bag.' }),
+  I({ id: 'bramble_antler', name: 'Bramblehorn Antler', kind: 'material', rarity: 'rare', base: 95, icon: '🦌', source: 'Mini-boss: Bramblehorn', desc: 'Covered in tiny blossoms.' }),
+  I({ id: 'ashwing_scale', name: 'Ashwing Scale', kind: 'material', rarity: 'epic', base: 210, icon: '🦋', source: 'Mini-boss: Ashwing', desc: 'Shimmers like a sunset over embers.' }),
+  I({ id: 'golden_whisker', name: 'Golden Whisker', kind: 'material', rarity: 'legendary', base: 900, icon: '✨', source: 'Golden Glimmerpuff', desc: 'Dropped by the shy Glimmerpuff. Priceless to collectors.' }),
+  I({ id: 'aurora_brush', name: 'Aurora Brush', kind: 'weapon', rarity: 'legendary', base: 1400, icon: '🖌️', atk: 9, stat: 'mag', source: 'Golden Glimmerpuff · locked chests', desc: '+9 attack. Paints the sky as you swing.' }),
+  I({ id: 'lantern_ember', name: 'Lantern Ember', kind: 'material', rarity: 'legendary', base: 1200, icon: '🏮', source: 'Main story', desc: 'The flame that lights Bellbrook. A thank-you from the whole town.' }),
+  I({ id: 'c_lantern_hat', name: 'Lantern Lid', kind: 'cosmetic', rarity: 'epic', base: 300, icon: '🏮', model: 'crown', color: 0xffcf6e, source: 'Main story', desc: 'Worn by the hero of Bellbrook.' }),
+  I({ id: 'f_bounty_trophy', name: 'Bounty Trophy', kind: 'furniture', rarity: 'rare', base: 160, icon: '🏆', model: 'lamp', color: 0xffd36e, source: 'Bounty board', desc: 'Proof you helped half of Bellbrook.' }),
   // Furniture (den decor). model = procedural mesh builder key in den.ts
   I({ id: 'f_bed', name: 'Cloud Puff Bed', kind: 'furniture', rarity: 'common', base: 60, icon: '🛏️', model: 'bed', color: 0x9ec9ff, source: 'Nook & Cranny', shop: 'furniture', desc: 'Sleep like a marshmallow.' }),
   I({ id: 'f_rug', name: 'Round Daisy Rug', kind: 'furniture', rarity: 'common', base: 25, icon: '🟡', model: 'rug', color: 0xffd36e, source: 'Nook & Cranny', shop: 'furniture', desc: 'Soft underpaw.' }),
@@ -114,6 +133,14 @@ export const ENEMIES: Record<string, EnemyDef> = {
   cinder_imp: { id: 'cinder_imp', name: 'Cinder Imp', hp: 44, level: 6, color: 0xff7043, shape: 'imp', scale: 0.9, exp: 38, glimmer: [15, 30],
     pattern: [{ kind: 'attack', n: 10 }, { kind: 'attack', n: 4, hits: 3 }, { kind: 'defend', n: 8 }, { kind: 'buff', n: 3 }],
     drops: [{ id: 'ember_shard', chance: 0.8, kind: 'item', min: 1, max: 3 }, { id: 'soot_silk', chance: 0.2, kind: 'item' }, { id: 'mint_elixir', chance: 0.25, kind: 'item' }, { id: 'cinder_fang', chance: 0.06, kind: 'item' }, { id: 'starfire_opal', chance: 0.02, kind: 'item' }, { id: 'moonbeam', chance: 0.1, kind: 'card' }, { id: 'second_wind', chance: 0.08, kind: 'card' }, { id: 'sweet_song', chance: 0.08, kind: 'card' }, { id: 'f_ember_hearth', chance: 0.05, kind: 'item' }] },
+  bramblehorn: { id: 'bramblehorn', name: 'Bramblehorn', hp: 64, level: 4, color: 0x6f8f3f, shape: 'pup', scale: 1.45, exp: 60, glimmer: [40, 70],
+    pattern: [{ kind: 'attack', n: 7 }, { kind: 'defend', n: 8 }, { kind: 'attack', n: 4, hits: 2 }, { kind: 'buff', n: 2 }],
+    guaranteed: [{ id: 'bramble_antler', chance: 1, kind: 'item' }],
+    drops: [{ id: 'brass_key', chance: 0.6, kind: 'item' }, { id: 'bramble_saber', chance: 0.25, kind: 'item' }, { id: 'glowcap_staff', chance: 0.2, kind: 'item' }, { id: 'pounce', chance: 0.3, kind: 'card' }, { id: 'leaf_wall', chance: 0.3, kind: 'card' }] },
+  ashwing: { id: 'ashwing', name: 'Ashwing', hp: 96, level: 8, color: 0xff9a4d, shape: 'imp', scale: 1.5, exp: 110, glimmer: [80, 130],
+    pattern: [{ kind: 'attack', n: 11 }, { kind: 'attack', n: 4, hits: 3 }, { kind: 'defend', n: 10 }, { kind: 'buff', n: 3 }],
+    guaranteed: [{ id: 'ashwing_scale', chance: 1, kind: 'item' }],
+    drops: [{ id: 'brass_key', chance: 0.7, kind: 'item' }, { id: 'cinder_fang', chance: 0.3, kind: 'item' }, { id: 'starfire_opal', chance: 0.2, kind: 'item' }, { id: 'moonbeam', chance: 0.3, kind: 'card' }, { id: 'second_wind', chance: 0.3, kind: 'card' }] },
   smoulderjaw: { id: 'smoulderjaw', name: 'Old Smoulderjaw', hp: 120, level: 10, color: 0xb23a2e, shape: 'boss', scale: 2.0, exp: 160, glimmer: [120, 200],
     pattern: [{ kind: 'attack', n: 12 }, { kind: 'defend', n: 12 }, { kind: 'attack', n: 6, hits: 3 }, { kind: 'buff', n: 4 }, { kind: 'attack', n: 20 }],
     guaranteed: [{ id: '__boss_epic__', chance: 1, kind: 'item' }],
@@ -123,12 +150,15 @@ export const BOSS_EPICS = ['sunpetal_blade', 'comet_scepter', 'velvet_paw', 'smo
 
 // Treasure chests: tiered loot tables
 export const CHEST_TABLES: Record<Rarity, { items: string[]; cards: string[]; glimmer: [number, number] }> = {
-  common: { items: ['moss_tuft', 'thorn_bark', 'berry_tonic', 'ember_shard'], cards: ['double_tap', 'peek'], glimmer: [10, 25] },
+  common: { items: ['moss_tuft', 'puff_berry', 'berry_tonic', 'ember_shard', 'minnowpuff'], cards: ['double_tap', 'peek'], glimmer: [10, 25] },
+  uncommon: { items: ['thorn_bark', 'glowcap', 'mint_elixir', 'bubblefin', 'hushleaf_sachet', 'brass_key'], cards: ['double_tap', 'peek', 'leaf_wall'], glimmer: [20, 40] },
   rare: { items: ['f_glowcap_lamp', 'f_ember_hearth', 'dewdrop_gem', 'soot_silk', 'bramble_saber', 'glowcap_staff', 'cinder_fang', 'mint_elixir'], cards: ['leaf_wall', 'moonbeam', 'pounce', 'sweet_song', 'second_wind'], glimmer: [30, 70] },
-  epic: { items: ['f_smoulder_throne', 'c_ember_crown', 'starfire_opal', 'sunpetal_blade', 'comet_scepter', 'velvet_paw'], cards: ['flurry', 'starfall', 'hearth_hug'], glimmer: [80, 160] },
+  epic: { items: ['f_smoulder_throne', 'c_ember_crown', 'starfire_opal', 'sunpetal_blade', 'comet_scepter', 'velvet_paw', 'moonscale_eel'], cards: ['flurry', 'starfall', 'hearth_hug'], glimmer: [80, 160] },
+  legendary: { items: ['aurora_brush', 'golden_whisker'], cards: ['flurry', 'starfall', 'hearth_hug'], glimmer: [220, 380] },
 };
 
-export const RARITY_COLOR: Record<Rarity, string> = { common: '#8a94a6', rare: '#3d8bff', epic: '#b04dff' };
+export const RARITY_COLOR: Record<Rarity, string> = { common: '#8a94a6', uncommon: '#3fae5a', rare: '#3d8bff', epic: '#b04dff', legendary: '#ff9f1a' };
+export const RARITY_HEX: Record<Rarity, number> = { common: 0xd8dde6, uncommon: 0x5fdc7a, rare: 0x3d8bff, epic: 0xb04dff, legendary: 0xffb02e };
 
 export const ZONES: Record<ZoneId, { name: string; sub: string; ground: number; path: number; fog: number; size: number }> = {
   town: { name: 'Bellbrook Town', sub: 'Market hub of Puffle Cay', ground: 0x9fd98a, path: 0xe9d3a1, fog: 0xcfeefc, size: 26 },
