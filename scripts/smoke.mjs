@@ -1,9 +1,9 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
-const out = '/workspace/whiskerwind-shots';
+const out = process.env.OUT || '/workspace/whiskerwind-shots';
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 1400, height: 860 } });
+const page = await browser.newPage({ viewport: { width: +(process.env.VW || 1400), height: +(process.env.VH || 860) } });
 const errors = [];
 page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
@@ -28,11 +28,12 @@ async function attackMid(name) {
   await atk.first().click({ timeout: 4000 }); await wait(170); await shot(name);
 }
 
-await page.goto('http://localhost:4174/');
+await page.goto(process.argv[2] || 'http://localhost:4174/whiskerwind/');
 await page.evaluate(() => localStorage.clear()); await page.reload(); await wait(1200);
 if (await page.$('#play')) { await page.click('#play'); await wait(600); }
 await shot('01-character-select');
 await page.click('[data-s="brumble"]'); await page.fill('#nm', 'Maple'); await page.click('#go');
+await wait(1200); if (await page.$('#sbskip')) { await page.click('#sbskip'); await wait(500); }
 await wait(2000);
 // give the tester a hat + rare weapon so the arena shows equipment
 await page.evaluate(() => { const S = window.__ww.S(); S.inventory.c_wizard = 1; S.wearing = 'c_wizard'; S.inventory.bramble_saber = 1; S.equipped = 'bramble_saber'; S.level = 8; S.hp = window.__ww.maxHp(); });
